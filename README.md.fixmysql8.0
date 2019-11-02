@@ -1,0 +1,66 @@
+
+1
+下载最新的go-mysql   go-log
+https://github.com/siddontang/go-log.git
+https://github.com/siddontang/go-mysql.git
+[root@kb3 siddontang]# pwd
+/opt/kingbus/src/github.com/flike/kingbus/vendor/github.com/siddontang
+[root@kb3 siddontang]# ls
+go  go-log  go-mysql  go-mysql_bak  tmp
+
+
+2修改新的go-mysql中的代码对照旧的go-mysql
+[root@kb3 replication]# pwd
+/opt/kingbus/src/github.com/flike/kingbus/vendor/github.com/siddontang/go-mysql/replication
+[root@kb3 replication]# vi const.go 
+     91         //add by kingbus
+     92         TRANSACTION_CONTEXT_EVENT //36
+     93         VIEW_CHANGE_EVENT         //37
+     94         XA_PREPARE_LOG_EVENT      //38
+
+	 
+	 
+	190         case TRANSACTION_CONTEXT_EVENT:
+    191                 return "TRANSACTION_CONTEXT_EVENT"
+    192         case VIEW_CHANGE_EVENT:
+    193                 return "VIEW_CHANGE_EVENT"
+    194         case XA_PREPARE_LOG_EVENT:
+    195                 return "XA_PREPARE_LOG_EVENT"
+
+	
+	
+[root@kb3 replication]# vi binlogsyncer.go 
+
+	 29         //add by kingbus, the uuid of sycner, using in set salve_uuid
+     30         ServerUuid string
+
+	 
+	 
+	 
+[root@kb3 replication]# vi event.go  
+	203 //by kingbus
+    204 type PreviousGtidsLogEvent struct {
+    205         GSet *MysqlGTIDSet
+    206 }
+    207 
+    208 func (e *PreviousGtidsLogEvent) Decode(data []byte) error {
+    209         var err error
+    210         e.GSet, err = DecodeMysqlGTIDSet(data)
+    211         if err != nil {
+    212                 return err
+    213         }
+    214         return nil
+    215 }
+    216 
+    217 func (e *PreviousGtidsLogEvent) Dump(w io.Writer) {
+    218         if e.GSet != nil {
+    219                 fmt.Fprintf(w, "PreviousGtids: %s\n", e.GSet.String())
+    220         }
+    221         fmt.Fprintln(w)
+    222 }
+
+	
+3修改kingbus认证方式
+[root@kb3 siddontang]# vi /opt/kingbus/src/github.com/flike/kingbus/mysql/auth.go 
+    116         checkAuth := gomysql.CalcCachingSha2Password(c.salt, password)  ##原来是CalcPassword
+
